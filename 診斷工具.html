@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可轉債系統診斷工具</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        .loading {
+            background: #e3f2fd;
+            border-left-color: #2196f3;
+            color: #1976d2;
+        }
+        .success {
+            background: #e8f5e9;
+            border-left-color: #4caf50;
+            color: #2e7d32;
+        }
+        .error {
+            background: #ffebee;
+            border-left-color: #f44336;
+            color: #c62828;
+        }
+        .info {
+            background: #fff3e0;
+            border-left-color: #ff9800;
+            color: #e65100;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .log-item {
+            margin: 5px 0;
+            padding: 5px;
+        }
+        .log-item.success { color: #2e7d32; }
+        .log-item.error { color: #c62828; }
+        .log-item.info { color: #1976d2; }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 10px 5px;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-group {
+            text-align: center;
+            margin: 20px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        table th, table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        table th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 可轉債系統診斷工具</h1>
+        
+        <div class="btn-group">
+            <button onclick="startDiagnosis()">🔍 開始診斷</button>
+            <button onclick="clearLog()">🗑️ 清除記錄</button>
+            <button onclick="testExcelLoad()">📊 測試載入Excel</button>
+        </div>
+        
+        <div id="status"></div>
+        <div id="log" class="log"></div>
+        <div id="dataPreview"></div>
+    </div>
+
+    <script>
+        const logDiv = document.getElementById('log');
+        const statusDiv = document.getElementById('status');
+        const previewDiv = document.getElementById('dataPreview');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('zh-TW');
+            const logItem = document.createElement('div');
+            logItem.className = `log-item ${type}`;
+            logItem.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(logItem);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function clearLog() {
+            logDiv.innerHTML = '';
+            statusDiv.innerHTML = '';
+            previewDiv.innerHTML = '';
+        }
+
+        function showStatus(message, type) {
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        async function startDiagnosis() {
+            clearLog();
+            log('========== 開始系統診斷 ==========', 'info');
+            
+            // 1. 檢查瀏覽器
+            log('1️⃣ 檢查瀏覽器...', 'info');
+            const ua = navigator.userAgent;
+            log(`瀏覽器: ${navigator.appName}`, 'info');
+            log(`版本: ${navigator.appVersion}`, 'info');
+            log(`User Agent: ${ua}`, 'info');
+            
+            // 2. 檢查XLSX函式庫
+            log('2️⃣ 檢查XLSX函式庫...', 'info');
+            if (typeof XLSX !== 'undefined') {
+                log('✅ XLSX函式庫已載入', 'success');
+                log(`版本: ${XLSX.version}`, 'info');
+            } else {
+                log('❌ XLSX函式庫未載入！', 'error');
+                showStatus('❌ XLSX函式庫未載入，無法讀取Excel檔案', 'error');
+                return;
+            }
+            
+            // 3. 檢查當前路徑
+            log('3️⃣ 檢查當前路徑...', 'info');
+            log(`當前網址: ${window.location.href}`, 'info');
+            log(`協定: ${window.location.protocol}`, 'info');
+            
+            if (window.location.protocol === 'file:') {
+                log('⚠️ 使用file://協定，可能會有CORS問題', 'error');
+                showStatus('⚠️ 建議使用本地伺服器或上傳到網站', 'info');
+            }
+            
+            // 4. 測試載入Excel
+            await testExcelLoad();
+            
+            log('========== 診斷完成 ==========', 'info');
+        }
+
+        async function testExcelLoad() {
+            log('4️⃣ 嘗試載入 auction_data.xlsx...', 'info');
+            showStatus('📊 正在載入 auction_data.xlsx...', 'loading');
+            
+            try {
+                // 嘗試載入檔案
+                log('發送請求到: auction_data.xlsx', 'info');
+                const response = await fetch('auction_data.xlsx');
+                
+                log(`HTTP狀態碼: ${response.status}`, 'info');
+                log(`狀態文字: ${response.statusText}`, 'info');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                log('✅ 成功獲取檔案', 'success');
+                
+                // 讀取檔案
+                log('正在讀取檔案內容...', 'info');
+                const arrayBuffer = await response.arrayBuffer();
+                log(`檔案大小: ${(arrayBuffer.byteLength / 1024).toFixed(2)} KB`, 'info');
+                
+                // 解析Excel
+                log('正在解析Excel...', 'info');
+                const data = new Uint8Array(arrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                log(`工作表數量: ${workbook.SheetNames.length}`, 'info');
+                log(`工作表名稱: ${workbook.SheetNames.join(', ')}`, 'info');
+                
+                // 讀取第一個工作表
+                const firstSheetName = workbook.SheetNames[0];
+                log(`讀取工作表: ${firstSheetName}`, 'info');
+                
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                
+                log(`✅ 成功解析，共 ${jsonData.length} 筆資料`, 'success');
+                
+                if (jsonData.length === 0) {
+                    log('❌ 警告：資料為空！', 'error');
+                    showStatus('❌ Excel檔案中沒有資料', 'error');
+                    return;
+                }
+                
+                // 檢查欄位
+                log('5️⃣ 檢查欄位...', 'info');
+                const requiredColumns = [
+                    '序號', '開標日期', '股票代號', 'CB代號', '名稱', 
+                    '股本', '發行規模', '年期', '擔保', '信評',
+                    '競拍張數', '底標價', '截標日', '截標收盤', '轉換價',
+                    '訂價溢價率', '理論價', '最低得標', '最低溢價',
+                    '平均得標', '平均溢價', '掛牌最高', '掛牌最低',
+                    '發行券商', '產業分類', '合格件數', '投標張數',
+                    '投標倍數', '投標均張', 'CB最新收盤價'
+                ];
+                
+                const firstRow = jsonData[0];
+                const actualColumns = Object.keys(firstRow);
+                
+                log(`實際欄位數: ${actualColumns.length}`, 'info');
+                log(`欄位列表: ${actualColumns.join(', ')}`, 'info');
+                
+                // 檢查缺少的欄位
+                const missingColumns = requiredColumns.filter(col => !actualColumns.includes(col));
+                if (missingColumns.length > 0) {
+                    log(`⚠️ 缺少欄位: ${missingColumns.join(', ')}`, 'error');
+                } else {
+                    log('✅ 所有必要欄位都存在', 'success');
+                }
+                
+                // 顯示前3筆資料預覽
+                log('6️⃣ 資料預覽（前3筆）...', 'info');
+                previewDiv.innerHTML = '<h3>📋 資料預覽（前3筆）</h3>';
+                
+                const previewData = jsonData.slice(0, 3);
+                let tableHTML = '<table><thead><tr>';
+                
+                // 只顯示主要欄位
+                const displayColumns = ['序號', '開標日期', '股票代號', 'CB代號', '名稱', '產業分類', '投標倍數'];
+                displayColumns.forEach(col => {
+                    tableHTML += `<th>${col}</th>`;
+                });
+                tableHTML += '</tr></thead><tbody>';
+                
+                previewData.forEach(row => {
+                    tableHTML += '<tr>';
+                    displayColumns.forEach(col => {
+                        tableHTML += `<td>${row[col] || '-'}</td>`;
+                    });
+                    tableHTML += '</tr>';
+                });
+                
+                tableHTML += '</tbody></table>';
+                previewDiv.innerHTML += tableHTML;
+                
+                showStatus(`✅ 載入成功！共 ${jsonData.length} 筆資料`, 'success');
+                log('========== 測試成功 ==========', 'success');
+                
+            } catch (error) {
+                log(`❌ 錯誤: ${error.message}`, 'error');
+                log(`錯誤堆疊: ${error.stack}`, 'error');
+                
+                let errorMessage = '';
+                let suggestion = '';
+                
+                if (error.message.includes('404') || error.message.includes('Not Found')) {
+                    errorMessage = '❌ 找不到 auction_data.xlsx 檔案';
+                    suggestion = `
+                        <strong>可能原因：</strong><br>
+                        • 檔案不存在<br>
+                        • 檔案名稱不正確（注意大小寫）<br>
+                        • 檔案不在同一個目錄<br><br>
+                        <strong>解決方式：</strong><br>
+                        1. 確認檔案名稱完全是 "auction_data.xlsx"<br>
+                        2. 確認此HTML檔與Excel檔在同一個資料夾<br>
+                        3. 重新整理頁面
+                    `;
+                } else if (error.message.includes('CORS')) {
+                    errorMessage = '❌ CORS跨域問題';
+                    suggestion = `
+                        <strong>解決方式：</strong><br>
+                        1. 使用本地伺服器（推薦）<br>
+                        2. 或上傳到網站空間<br>
+                        3. 或使用 VS Code 的 Live Server 外掛
+                    `;
+                } else {
+                    errorMessage = '❌ 未知錯誤';
+                    suggestion = `
+                        <strong>錯誤訊息：</strong>${error.message}<br><br>
+                        <strong>建議：</strong><br>
+                        1. 檢查Excel檔案是否正常<br>
+                        2. 嘗試重新下載檔案<br>
+                        3. 使用Chrome或Edge瀏覽器<br>
+                        4. 清除瀏覽器快取
+                    `;
+                }
+                
+                showStatus(`${errorMessage}<br><br>${suggestion}`, 'error');
+            }
+        }
+
+        // 頁面載入時自動診斷
+        window.addEventListener('load', () => {
+            log('診斷工具已準備就緒', 'success');
+            log('點擊「開始診斷」按鈕開始檢查系統', 'info');
+        });
+    </script>
+</body>
+</html>
