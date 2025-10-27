@@ -407,37 +407,6 @@
             display: block;
         }
 
-        .upload-section {
-            background: linear-gradient(135deg, #e8f5e9 0%, #ffffff 100%);
-            padding: 25px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            border-left: 4px solid #4caf50;
-            text-align: center;
-        }
-
-        .upload-btn {
-            background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
-            color: white;
-            padding: 12px 30px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
-        }
-
-        .upload-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
-        }
-
-        #excelFileInput {
-            display: none;
-        }
-        
         .footer { 
             padding: 20px 30px; 
             background: #f8f9fa; 
@@ -470,18 +439,7 @@
         </div>
 
         <div class="data-update-banner" id="dataUpdateBanner">
-            📅 載入中...
-        </div>
-
-        <!-- Excel上傳區 -->
-        <div class="upload-section">
-            <h3 style="color: #2e7d32; margin-bottom: 15px;">📂 匯入競拍資料</h3>
-            <p style="color: #616161; margin-bottom: 20px; font-size: 0.9rem;">請上傳包含30個欄位的 Excel 檔案（auction_data.xlsx）</p>
-            <input type="file" id="excelFileInput" accept=".xlsx,.xls" onchange="handleExcelUpload(event)">
-            <button class="upload-btn" onclick="document.getElementById('excelFileInput').click()">
-                📤 選擇 Excel 檔案
-            </button>
-            <p id="uploadStatus" style="margin-top: 15px; font-weight: 600; color: #2e7d32;"></p>
+            📅 正在載入競拍資料...
         </div>
 
         <div class="tabs">
@@ -875,82 +833,76 @@
         let selectedFilterConditions = {};
         let currentAnalysisData = null;
 
-        // ==================== Excel 上傳與解析功能 ====================
-        function handleExcelUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-
-                    // 轉換資料格式
-                    auctionData = jsonData.map(row => {
-                        // 計算投資氛圍
-                        const atmosphere = calculateAtmosphere(row['投標倍數']);
-                        
-                        return {
-                            no: row['序號'],
-                            date: formatDate(row['開標日期']),
-                            stockCode: String(row['股票代號']),
-                            cbCode: String(row['CB代號']),
-                            name: row['名稱'],
-                            capital: parseFloat(row['股本']) || 0,
-                            scale: parseFloat(row['發行規模']) || 0,
-                            period: row['年期'] + '年',
-                            secured: row['擔保'],
-                            rating: parseInt(row['信評']) || 0,
-                            volume: parseInt(row['競拍張數']) || 0,
-                            floor: parseFloat(row['底標價']) || 0,
-                            cutoffDate: formatDate(row['截標日']),
-                            cutoffPrice: parseFloat(row['截標收盤']) || 0,
-                            convPrice: parseFloat(row['轉換價']) || 0,
-                            pricePremium: row['訂價溢價率'],
-                            theoretical: parseFloat(row['理論價']) || 0,
-                            minBid: parseFloat(row['最低得標']) || 0,
-                            minPremium: parseFloat(row['最低溢價']) || 0,
-                            avgBid: parseFloat(row['平均得標']) || 0,
-                            avgPremium: parseFloat(row['平均溢價']) || 0,
-                            listHigh: parseFloat(row['掛牌最高']) || 0,
-                            listLow: parseFloat(row['掛牌最低']) || 0,
-                            underwriter: row['發行券商'],
-                            industry: row['產業分類'],
-                            qualifiedCount: parseInt(row['合格件數']) || 0,
-                            bidVolume: parseInt(row['投標張數']) || 0,
-                            bidMultiple: parseFloat(row['投標倍數']) || 0,
-                            avgBidVolume: parseFloat(row['投標均張']) || 0,
-                            closePrice: parseFloat(row['CB最新收盤價']) || null,
-                            atmosphere: atmosphere
-                        };
-                    });
-
-                    document.getElementById('uploadStatus').innerHTML = 
-                        `✅ 成功載入 ${auctionData.length} 筆資料！`;
-                    document.getElementById('uploadStatus').style.color = '#2e7d32';
-                    
-                    // 更新資料期間資訊
-                    updateDataPeriodInfo();
-                    
-                    // 清空之前的查詢結果
-                    document.getElementById('singleResult').innerHTML = '';
-                    document.getElementById('batchResult').innerHTML = '';
-                    document.getElementById('filterResult').innerHTML = '';
-                    
-                    setTimeout(() => {
-                        document.getElementById('uploadStatus').innerHTML = '';
-                    }, 3000);
-
-                } catch (error) {
-                    document.getElementById('uploadStatus').innerHTML = 
-                        `❌ 檔案解析失敗：${error.message}`;
-                    document.getElementById('uploadStatus').style.color = '#d32f2f';
+        // ==================== 自動載入 Excel 資料 ====================
+        async function loadExcelData() {
+            try {
+                // 顯示載入中訊息
+                document.getElementById('dataUpdateBanner').innerHTML = '📅 正在載入競拍資料...';
+                
+                // 讀取同目錄下的 auction_data.xlsx
+                const response = await fetch('auction_data.xlsx');
+                if (!response.ok) {
+                    throw new Error('無法載入 auction_data.xlsx 檔案');
                 }
-            };
-            reader.readAsArrayBuffer(file);
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const data = new Uint8Array(arrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                // 轉換資料格式
+                auctionData = jsonData.map(row => {
+                    // 計算投資氛圍
+                    const atmosphere = calculateAtmosphere(row['投標倍數']);
+                    
+                    return {
+                        no: row['序號'],
+                        date: formatDate(row['開標日期']),
+                        stockCode: String(row['股票代號']),
+                        cbCode: String(row['CB代號']),
+                        name: row['名稱'],
+                        capital: parseFloat(row['股本']) || 0,
+                        scale: parseFloat(row['發行規模']) || 0,
+                        period: row['年期'] + '年',
+                        secured: row['擔保'],
+                        rating: parseInt(row['信評']) || 0,
+                        volume: parseInt(row['競拍張數']) || 0,
+                        floor: parseFloat(row['底標價']) || 0,
+                        cutoffDate: formatDate(row['截標日']),
+                        cutoffPrice: parseFloat(row['截標收盤']) || 0,
+                        convPrice: parseFloat(row['轉換價']) || 0,
+                        pricePremium: row['訂價溢價率'],
+                        theoretical: parseFloat(row['理論價']) || 0,
+                        minBid: parseFloat(row['最低得標']) || 0,
+                        minPremium: parseFloat(row['最低溢價']) || 0,
+                        avgBid: parseFloat(row['平均得標']) || 0,
+                        avgPremium: parseFloat(row['平均溢價']) || 0,
+                        listHigh: parseFloat(row['掛牌最高']) || 0,
+                        listLow: parseFloat(row['掛牌最低']) || 0,
+                        underwriter: row['發行券商'],
+                        industry: row['產業分類'],
+                        qualifiedCount: parseInt(row['合格件數']) || 0,
+                        bidVolume: parseInt(row['投標張數']) || 0,
+                        bidMultiple: parseFloat(row['投標倍數']) || 0,
+                        avgBidVolume: parseFloat(row['投標均張']) || 0,
+                        closePrice: parseFloat(row['CB最新收盤價']) || null,
+                        atmosphere: atmosphere
+                    };
+                });
+
+                console.log(`✅ 成功載入 ${auctionData.length} 筆資料`);
+                
+                // 更新資料期間資訊
+                updateDataPeriodInfo();
+                
+            } catch (error) {
+                console.error('載入資料失敗:', error);
+                document.getElementById('dataUpdateBanner').innerHTML = 
+                    `❌ 資料載入失敗：${error.message}（請確認 auction_data.xlsx 在同目錄下）`;
+                document.getElementById('dataUpdateBanner').style.background = '#ffebee';
+                document.getElementById('dataUpdateBanner').style.color = '#c62828';
+            }
         }
 
         // 日期格式化函數
@@ -978,7 +930,7 @@
 
         function updateDataPeriodInfo() {
             if (auctionData.length === 0) {
-                document.getElementById('dataUpdateBanner').innerHTML = '📅 請先上傳 Excel 資料檔案';
+                document.getElementById('dataUpdateBanner').innerHTML = '📅 資料載入中...';
                 return;
             }
 
@@ -1006,6 +958,8 @@
                 📅 競拍資料期間：${startPeriod}～${endPeriod}，共計 <strong>${auctionData.length}</strong> 檔 | 
                 💰 CB最新收盤價：<strong>2025/10/27</strong>
             `;
+            document.getElementById('dataUpdateBanner').style.background = 'linear-gradient(135deg, #fff3e0 0%, #ffffff 100%)';
+            document.getElementById('dataUpdateBanner').style.color = '#e65100';
         }
 
         function switchTab(tab) {
@@ -1034,7 +988,7 @@
         // ==================== 單檔查詢功能 ====================
         function executeSingleSearch() {
             if (auctionData.length === 0) {
-                alert('請先上傳 Excel 資料檔案');
+                alert('資料尚未載入完成，請稍候再試');
                 return;
             }
 
@@ -1225,7 +1179,7 @@
         // ==================== 批次查詢功能 ====================
         function addToBatchList() {
             if (auctionData.length === 0) {
-                alert('請先上傳 Excel 資料檔案');
+                alert('資料尚未載入完成，請稍候再試');
                 return;
             }
 
@@ -1304,7 +1258,7 @@
 
         function executeBatchSearch() {
             if (auctionData.length === 0) {
-                alert('請先上傳 Excel 資料檔案');
+                alert('資料尚未載入完成，請稍候再試');
                 return;
             }
 
@@ -1909,7 +1863,9 @@ vs 平均最高得標：${data.diffMaxBid >= 0 ? '+' : ''}${data.diffMaxBid.toFi
         // 初始化
         window.onload = function() {
             displayCurrentDate();
-            updateDataPeriodInfo();
+            
+            // 自動載入 Excel 資料
+            loadExcelData();
             
             const saved = localStorage.getItem('investorType');
             if (saved) {
