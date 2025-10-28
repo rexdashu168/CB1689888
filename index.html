@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可轉債競拍查詢系統</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            min-height: 100vh; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 1600px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2); 
+            overflow: hidden; 
+        }
+        .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            padding: 30px; 
+            text-align: center; 
+        }
+        .header h1 { 
+            font-size: 2rem; 
+            margin-bottom: 10px; 
+            font-weight: 600; 
+        }
+        .header p { 
+            font-size: 0.95rem; 
+            opacity: 0.9; 
+        }
+        .header-info { 
+            display: flex; 
+            justify-content: center; 
+            gap: 30px; 
+            margin-top: 15px; 
+            flex-wrap: wrap; 
+        }
+        .header-info-item { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            font-size: 0.9rem; 
+            background: rgba(255, 255, 255, 0.2); 
+            padding: 8px 16px; 
+            border-radius: 20px; 
+            transition: all 0.3s ease; 
+            cursor: pointer; 
+        }
+        .header-info-item:hover { 
+            background: rgba(255, 255, 255, 0.35); 
+            transform: translateY(-2px); 
+        }
+
+        .data-update-banner {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffffff 100%);
+            padding: 12px 30px;
+            text-align: center;
+            color: #e65100;
+            font-size: 0.9rem;
+            border-bottom: 2px solid #ffcc80;
+        }
+
+        .tabs { 
+            display: flex; 
+            background: #f8f9fa; 
+            border-bottom: 3px solid #dee2e6; 
+        }
+        .tab { 
+            flex: 1; 
+            padding: 12px 10px; 
+            text-align: center; 
+            font-size: 1rem; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.3s; 
+            border-bottom: 3px solid transparent; 
+            margin-bottom: -3px; 
+            line-height: 1.3;
+        }
+        .tab:hover { 
+            background: #e9ecef; 
+        }
+        .tab.active { 
+            background: white; 
+            border-bottom: 3px solid #667eea; 
+            color: #667eea; 
+        }
+        
+        .tab-content { 
+            display: none; 
+            padding: 30px; 
+        }
+        .tab-content.active { 
+            display: block; 
+        }
+        
+        .search-box { 
+            max-width: 600px; 
+            margin: 50px auto; 
+            text-align: center; 
+        }
+        .search-box input { 
+            width: 100%; 
+            padding: 15px; 
+            font-size: 1.1rem; 
+            border: 3px solid #667eea; 
+            border-radius: 10px; 
+        }
+        .search-box input:focus { 
+            outline: none; 
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.3); 
+        }
+        .search-hint { 
+            color: #6c757d; 
+            margin-top: 15px; 
+            font-size: 0.9rem; 
+        }
+        
+        .btn { 
+            padding: 12px 30px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 1rem; 
+            font-weight: 600; 
+            transition: all 0.3s; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }
+        .btn-primary { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+        }
+        .btn-primary:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); 
+        }
+        .btn-secondary { 
+            background: #6c757d; 
+            color: white; 
+        }
+        .btn-secondary:hover { 
+            background: #5a6268; 
+            transform: translateY(-2px); 
+        }
+        
+        .warning-banner {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffffff 100%);
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .warning-banner h4 {
+            color: #d32f2f;
+            margin-bottom: 10px;
+        }
+        
+        .warning-banner p {
+            color: #424242;
+            line-height: 1.8;
+            margin: 5px 0;
+        }
+
+        .footer { 
+            padding: 20px 30px; 
+            background: #f8f9fa; 
+            border-top: 2px solid #e9ecef; 
+            text-align: center; 
+            color: #6c757d; 
+            font-size: 0.85rem; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 可轉債競拍查詢系統</h1>
+            <p style="margin-bottom: 15px;">競拍統計數據 | 智能模擬分析 | 投標價格試算</p>
+            <div class="header-info">
+                <div class="header-info-item"><span>📅</span><span id="currentDate">載入中...</span></div>
+                <div class="header-info-item" onclick="window.open('https://vocus.cc/salon/655c9dbcfd897800019d5bb4', '_blank')"><span>📝</span><span>方格子部落格</span></div>
+                <div class="header-info-item" onclick="window.open('https://www.youtube.com/@rexdashu168', '_blank')"><span>🎬</span><span>YouTube頻道</span></div>
+            </div>
+            <p style="margin-top: 12px; font-size: 0.85rem; opacity: 0.85;">by Rex大叔的168小股投資教室</p>
+        </div>
+
+        <div class="data-update-banner" id="dataUpdateBanner">
+            📅 正在載入競拍資料...
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('single')">📝<br>單檔查詢</div>
+            <div class="tab" onclick="switchTab('batch')">📊<br>批次查詢</div>
+            <div class="tab" onclick="switchTab('filter')">⚙️<br>條件篩選</div>
+            <div class="tab" onclick="switchTab('calculator')">🎯<br>投標計算機</div>
+            <div class="tab" onclick="switchTab('rules')">📋<br>競拍須知</div>
+        </div>
+
+        <!-- Tab 1: 單檔查詢 -->
+        <div id="tab-single" class="tab-content active">
+            <div class="search-box">
+                <h2 style="margin-bottom: 20px; color: #495057;">🔍 單檔歷史查詢</h2>
+                <div style="background: linear-gradient(135deg, #e3f2fd 0%, #ffffff 100%); padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 4px solid #2196f3; text-align: left;">
+                    <h4 style="color: #1976d2; margin-bottom: 12px; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                        <span>💡</span><span>功能說明</span>
+                    </h4>
+                    <div style="color: #424242; font-size: 0.9rem; line-height: 1.8;">
+                        <p style="margin-bottom: 8px;"><strong>查詢方式：</strong>輸入股票代號、CB代號或公司名稱</p>
+                        <p style="margin-bottom: 8px;"><strong>顯示內容：</strong>該公司所有歷次發行的可轉債競拍記錄</p>
+                        <p style="margin-bottom: 0;"><strong>使用範例：</strong>輸入「3617」或「碩天」，呈現完整該公司歷史競拍資料</p>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 15px; align-items: center; max-width: 600px; margin: 0 auto;">
+                    <input type="text" id="singleSearchInput" placeholder="輸入股票代號、CB代號或公司名稱" 
+                        onkeyup="if(event.key==='Enter') executeSingleSearch()">
+                    <button class="btn btn-primary" onclick="executeSingleSearch()">查詢</button>
+                </div>
+                <p class="search-hint">查詢該公司所有可轉債競拍歷史記錄</p>
+            </div>
+            <div id="singleResult"></div>
+        </div>
+
+        <!-- Tab 2: 批次查詢 -->
+        <div id="tab-batch" class="tab-content">
+            <h2 style="color: #495057; margin-bottom: 20px;">📊 批次比較查詢</h2>
+            <p style="text-align: center; padding: 40px; color: #666;">此功能開發中...</p>
+        </div>
+
+        <!-- Tab 3: 條件篩選 -->
+        <div id="tab-filter" class="tab-content">
+            <h2 style="color: #495057; margin-bottom: 20px;">⚙️ 條件篩選分析</h2>
+            <div style="background: linear-gradient(135deg, #e3f2fd 0%, #ffffff 100%); padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 4px solid #2196f3;">
+                <h4 style="color: #1976d2; margin-bottom: 12px; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                    <span>💡</span><span>功能說明</span>
+                </h4>
+                <div style="color: #424242; font-size: 0.9rem; line-height: 1.8;">
+                    <p style="margin-bottom: 8px;"><strong>獨立分析：</strong>此功能可獨立使用，直接顯示符合條件的歷史資料統計</p>
+                    <p style="margin-bottom: 8px;"><strong>輔助計算機：</strong>分析結果可作為「投標計算機」的參考數據來源</p>
+                    <p style="margin-bottom: 0;"><strong>使用建議：</strong>先在此設定條件查看歷史統計，再到投標計算機試算價格</p>
+                </div>
+            </div>
+            <p style="text-align: center; padding: 40px; color: #666;">此功能開發中...</p>
+        </div>
+
+        <!-- Tab 4: 投標計算機 -->
+        <div id="tab-calculator" class="tab-content">
+            <h2 style="color: #495057; margin-bottom: 20px;">🎯 投標價格試算</h2>
+            <p style="text-align: center; padding: 40px; color: #666;">此功能開發中...</p>
+        </div>
+
+        <!-- Tab 5: 競拍須知 -->
+        <div id="tab-rules" class="tab-content">
+            <h2 style="color: #495057; margin-bottom: 20px;">📋 可轉債競拍須知</h2>
+            
+            <div style="background: linear-gradient(135deg, #ffebee 0%, #ffffff 100%); padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 4px solid #f44336; text-align: center;">
+                <h3 style="color: #c62828; margin-bottom: 10px;">⚠️ 重要提醒</h3>
+                <p style="color: #424242; font-size: 1.1rem; line-height: 1.8;">
+                    <strong>本頁面內容為官方競拍規則摘錄，投標前務必詳細閱讀</strong><br>
+                    了解遊戲規則是成功投標的第一步
+                </p>
+            </div>
+
+            <!-- 投標保證金與處理費 -->
+            <div style="margin-bottom: 20px;">
+                <button type="button" class="collapsible">💰 七、投標處理費、投標保證金</button>
+                <div class="collapsible-content">
+                    <div style="background: white; padding: 25px; border-radius: 8px; line-height: 2;">
+                        <h4 style="color: #1976d2; margin-bottom: 15px; border-bottom: 2px solid #e3f2fd; padding-bottom: 10px;">
+                            (一) 投標保證金成數
+                        </h4>
+                        <p style="margin-bottom: 15px;">
+                            每一投標單保證金成數為投標金額之<strong style="color: #d32f2f;">百分之五十</strong>。<br>
+                            投標人應繳保證金金額，請依下列公式計算：<br>
+                            每張投標價格：100元(含)以上，每張投標價格最小單位至分為止。
+                        </p>
+                        <div style="background: #e3f2fd; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                            <strong style="color: #1565c0; font-size: 1.1rem;">計算公式：</strong><br>
+                            <span style="font-size: 1.2rem; color: #d32f2f; font-weight: 600;">
+                                每一投標單應繳保證金 = 每張投標價格 × 1,000 × 投標張數 × 50%
+                            </span>
+                        </div>
+
+                        <h4 style="color: #1976d2; margin: 25px 0 15px 0; border-bottom: 2px solid #e3f2fd; padding-bottom: 10px;">
+                            (二) 投標處理費
+                        </h4>
+                        <p style="margin-bottom: 15px;">
+                            投標人參與投標時，每一投標單應繳交<strong style="color: #d32f2f;">投標處理費新台幣400元整</strong>。<br>
+                            未得標件或不合格標，其投標處理費均不予退回。
+                        </p>
+
+                        <h4 style="color: #1976d2; margin: 25px 0 15px 0; border-bottom: 2px solid #e3f2fd; padding-bottom: 10px;">
+                            (三) 保證金及處理費截止日
+                        </h4>
+                        <p style="margin-bottom: 15px;">
+                            投標保證金及投標處理費繳存往來銀行截止日為<strong style="color: #d32f2f;">競拍期間最後一日</strong>；<br>
+                            投標保證金及投標處理費往來銀行扣繳日為<strong style="color: #d32f2f;">截止日次一營業日</strong>。
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 投標單不合格件 -->
+            <div style="margin-bottom: 20px;">
+                <button type="button" class="collapsible">❌ 十、投標單不合格件之情事</button>
+                <div class="collapsible-content">
+                    <div style="background: white; padding: 25px; border-radius: 8px;">
+                        <p style="margin-bottom: 20px; color: #c62828; font-weight: 600; font-size: 1.05rem;">
+                            投標單有下列各款情事之一者，為不合格件，該投標單不得參與競價，投標處理費均不予退回：
+                        </p>
+                        
+                        <div style="display: grid; gap: 12px;">
+                            <div style="padding: 15px; background: #ffebee; border-left: 4px solid #f44336; border-radius: 4px;">
+                                <strong style="color: #c62828;">(一)</strong> 投標價格低於最低承銷價格每張100元者。
+                            </div>
+                            <div style="padding: 15px; background: #ffebee; border-left: 4px solid #f44336; border-radius: 4px;">
+                                <strong style="color: #c62828;">(二)</strong> 投標數量低於下限1張或高於850張，或非為1張之整數倍數。
+                            </div>
+                            <div style="padding: 15px; background: #ffebee; border-left: 4px solid #f44336; border-radius: 4px;">
+                                <strong style="color: #c62828;">(三)</strong> 未繳足投標保證金或投標處理費者。
+                            </div>
+                            <div style="padding: 15px; background: #ffebee; border-left: 4px solid #f44336; border-radius: 4px;">
+                                <strong style="color: #c62828;">(四)</strong> 未填妥交易帳號(11碼)，或資料不實者。
+                            </div>
+                            <div style="padding: 15px; background: #ffebee; border-left: 4px solid #f44336; border-radius: 4px;">
+                                <strong style="color: #c62828;">(五)</strong> 未填妥身分證字號或統一編號，或資料不實者。
+                            </div>
+                            <div style="padding: 15px; background: #ffebee; border-left: 4px solid #f44336; border-radius: 4px;">
+                                <strong style="color: #c62828;">(六)</strong> 自然人未填妥出生年月日，或資料不實者。
+                            </div>
+                            <div style="padding: 15px; background: #ffebee; border-left: 4px solid #f44336; border-radius: 4px;">
+                                <strong style="color: #c62828;">(七)</strong> 未填妥債券代碼者。
+                            </div>
+                            <div style="padding: 15px; background: #ffebee; border-left: 4px solid #f44336; border-radius: 4px;">
+                                <strong style="color: #c62828;">(八)</strong> 投標人身分與公告不符者。
+                            </div>
+                            <div style="padding: 15px; background: #ffebee; border-left: 4px solid #f44336; border-radius: 4px;">
+                                <strong style="color: #c62828;">(九)</strong> 未開立交易戶、款項劃撥銀行帳戶或有價證券保管劃撥帳戶者。
+                            </div>
+                            <div style="padding: 15px; background: #ffebee; border-left: 4px solid #f44336; border-radius: 4px;">
+                                <strong style="color: #c62828;">(十)</strong> 未與經紀商指定之往來銀行就競價相關款項及繳事宜簽訂委託扣款約定者。
+                            </div>
+                            <div style="padding: 15px; background: #ffebee; border-left: 4px solid #f44336; border-radius: 4px;">
+                                <strong style="color: #c62828;">(十一)</strong> 投標人款項劃撥銀行帳戶之存款餘額，低於所有投標有價證券保證金、投標處理費之合計金額者。
+                            </div>
+                            <div style="padding: 15px; background: #ffebee; border-left: 4px solid #f44336; border-radius: 4px;">
+                                <strong style="color: #c62828;">(十二)</strong> 利用或冒用他人名義投標者。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rex大叔的投標建議 -->
+            <div style="background: linear-gradient(135deg, #e8f5e9 0%, #ffffff 100%); padding: 25px; border-radius: 10px; margin-top: 30px; border-left: 4px solid #4caf50;">
+                <h3 style="color: #2e7d32; margin-bottom: 15px;">💡 Rex大叔的投標建議</h3>
+                <div style="display: grid; gap: 15px;">
+                    <div style="background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <strong style="color: #1976d2;">✓ 截標日1:30收盤後再投標</strong><br>
+                        <span style="color: #616161; font-size: 0.9rem;">避免價格波動期間決策，計算「靜止的理論價格」</span>
+                    </div>
+                    <div style="background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <strong style="color: #1976d2;">✓ 專注於風險，不追求報酬</strong><br>
+                        <span style="color: #616161; font-size: 0.9rem;">目標是以最接近最低得標價拍到，控制成本才是長期獲利的關鍵</span>
+                    </div>
+                    <div style="background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <strong style="color: #1976d2;">✓ 充分準備保證金與處理費</strong><br>
+                        <span style="color: #616161; font-size: 0.9rem;">確保帳戶餘額足夠，避免因餘額不足導致不合格件</span>
+                    </div>
+                    <div style="background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <strong style="color: #1976d2;">✓ 投標後無法取消，務必再次檢查</strong><br>
+                        <span style="color: #616161; font-size: 0.9rem;">投完標務必再次檢查，確保交割資金充足</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; font-size: 0.9rem; color: #856404;">
+                <strong>💡 說明：</strong>以上內容摘錄自證券櫃檯買賣中心公開說明書，完整規則請參閱各檔可轉債公開說明書。
+            </div>
+        </div>
+
+        <div class="warning-banner">
+            <h4>⚠️ 風險提醒</h4>
+            <p><strong>投資可轉債競拍涉及風險，可能產生本金損失</strong></p>
+            <p>本系統僅提供歷史數據參考，不構成任何投資建議</p>
+            <p>過去表現不代表未來結果，投資決策請自行評估風險</p>
+        </div>
+
+        <div class="footer">
+            <p style="font-weight: 500;">資料來源：證券櫃檯買賣中心</p>
+            <p style="margin-top: 8px; color: #f44336; font-weight: 500;">⚠️ 本表僅供參考，投資決策請自行評估風險</p>
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #dee2e6;">
+                <p style="font-weight: 600; color: #495057; margin-bottom: 12px;">📚 Rex大叔的168小股投資教室</p>
+                <p style="font-size: 0.85rem; color: #6c757d;">更多投資觀念與可轉債分析，歡迎訂閱學習</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function displayCurrentDate() {
+            const now = new Date();
+            const options = {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long'
+            };
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('zh-TW', options);
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tabName).classList.add('active');
+            
+            // 如果切換到競拍須知分頁，初始化摺疊功能
+            if (tabName === 'rules') {
+                initCollapsibles();
+            }
+        }
+        
+        // 初始化摺疊按鈕功能
+        function initCollapsibles() {
+            const collapsibles = document.querySelectorAll('.collapsible');
+            collapsibles.forEach(btn => {
+                // 移除舊的監聽器
+                const newBtn = btn.cloneNode(true);
+                btn.parentNode.replaceChild(newBtn, btn);
+                
+                // 添加新的監聽器
+                newBtn.addEventListener('click', function() {
+                    this.classList.toggle('active');
+                    const content = this.nextElementSibling;
+                    if (content.classList.contains('active')) {
+                        content.classList.remove('active');
+                        content.style.maxHeight = null;
+                    } else {
+                        content.classList.add('active');
+                        content.style.maxHeight = content.scrollHeight + "px";
+                    }
+                });
+            });
+        }
+
+        function executeSingleSearch() {
+            // 單檔查詢功能 - 開發中
+            document.getElementById('singleResult').innerHTML = `
+                <div style="background: #e3f2fd; padding: 30px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #2196f3; text-align: center;">
+                    <h4 style="color: #1976d2; margin-bottom: 10px;">🔧 功能開發中</h4>
+                    <p style="color: #424242;">單檔查詢功能正在開發中，敬請期待</p>
+                </div>
+            `;
+        }
+
+        // 初始化
+        window.onload = function() {
+            displayCurrentDate();
+        };
+
+        // 摺疊按鈕樣式
+        const style = document.createElement('style');
+        style.textContent = `
+            .collapsible {
+                background: #e3f2fd;
+                cursor: pointer;
+                padding: 15px;
+                border: none;
+                text-align: left;
+                outline: none;
+                font-size: 1rem;
+                font-weight: 600;
+                width: 100%;
+                border-radius: 8px;
+                margin-bottom: 10px;
+                color: #1565c0;
+                transition: all 0.3s ease;
+            }
+
+            .collapsible:hover {
+                background: #bbdefb;
+            }
+
+            .collapsible.active {
+                background: #90caf9;
+            }
+
+            .collapsible::after {
+                content: '▼';
+                float: right;
+                font-size: 0.8rem;
+                transition: transform 0.3s ease;
+            }
+
+            .collapsible.active::after {
+                transform: rotate(-180deg);
+            }
+
+            .collapsible-content {
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease;
+                background: white;
+                border-radius: 8px;
+                margin-bottom: 20px;
+            }
+
+            .collapsible-content.active {
+                max-height: 2000px;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
